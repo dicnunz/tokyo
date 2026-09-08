@@ -1,8 +1,10 @@
-# Tokyo
+# Inō · Tokyo
 
 A georeferenced 3D explorer for Tokyo built with Three.js, PLATEAU city models, and GSI terrain and aerial imagery. Walk or fly through streamed survey geometry, visit selected Shibuya interiors, and inspect published underground scans.
 
 ![Tokyo Survey Atlas in Shibuya](docs/shibuya.png)
+
+The name refers to [Inō Tadataka’s field surveys](https://www.ndl.go.jp/en/jikihitsu/part1/s3_3/). The interface takes its paper palette, ruled margins and compact annotations from [historic survey sheets](https://www.loc.gov/resource/gdcwdl.wdl_11823/), while the city data remains modern.
 
 ## Run locally
 
