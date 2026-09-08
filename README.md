@@ -1,4 +1,4 @@
-# Tokyo Survey Atlas
+# Alidade
 
 A georeferenced 3D explorer for Tokyo built with Three.js, PLATEAU city models, and GSI terrain and aerial imagery. Walk or fly through streamed survey geometry, visit selected Shibuya interiors, and inspect published underground scans.
 
