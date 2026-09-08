@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "name": "Tokyo Digital Twin native aerial orthophotography",
+  "attribution": "東京都デジタルツイン実現プロジェクトのオルソ画像を加工して作成",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://gic-tokyo.s3.ap-northeast-1.amazonaws.com/2023/dig/doc/license.pdf",
+  "catalogUrl": "https://catalog.data.metro.tokyo.lg.jp/dataset/t000029d0000000020",
+  "sourcePixelMeters": 0.2,
+  "sourceCrs": "EPSG:6677",
+  "captureDateNote": "2023 is the publication dataset year. An exact acquisition date for each image sheet has not been verified.",
+  "sourceFormat": "2000 x 1500 RGB8 GeoTIFF sheets, 400 x 300 meters, in individual DEFLATE ZIP archives",
+  "output": {"scheme": "xyz", "crs": "EPSG:3857", "tileSize": 256, "minzoom": 18, "maxzoom": 22, "format": "png", "alpha": "0 outside available source coverage; source dataset validity is carried through reprojection", "resampling": "bilinear"},
+  "coverageNote": "Tama and Izu only. Ogasawara and the 23 wards are not supplied by these ortho resources. Bounding boxes below are request filters; the actual published MVT footprints determine availability.",
+  "regions": [
+    {
+      "id": "tama",
+      "publicationYear": 2023,
+      "metadataUpdated": "2024-10-04",
+      "bounds": [138.90, 35.45, 139.65, 35.92],
+      "catalogUrl": "https://www.geospatial.jp/ckan/dataset/tokyopc-tama-2023",
+      "indexZoom": 16,
+      "indexUrl": "https://gic-tokyo.s3.ap-northeast-1.amazonaws.com/2023/dig/Vectortile/tama/ortho/{z}/{x}/{y}.pbf"
+    },
+    {
+      "id": "izu",
+      "publicationYear": 2023,
+      "metadataUpdated": "2024-10-04",
+      "bounds": [138.90, 32.40, 139.95, 34.90],
+      "catalogUrl": "https://www.geospatial.jp/ckan/dataset/tokyopc-shima-2023",
+      "indexZoom": 16,
+      "indexUrl": "https://gic-tokyo.s3.ap-northeast-1.amazonaws.com/2023/dig/Vectortile/toushobu/ortho/{z}/{x}/{y}.pbf"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+import type {WebGLRenderer} from 'three';
+/** Non-blocking GPU queries and real wall-clock frame pacing. */
+export class FrameMonitor{
+ private frames:number[]=[];private cpu:number[]=[];private gpu:number[]=[];private frameStart=0;private previous=0;private adjusted=0;private query:WebGLQuery|null=null;private pending:WebGLQuery[]=[];
+ private gl:WebGL2RenderingContext;private extension:any;private native:number;private lost=false;
+ constructor(private renderer:WebGLRenderer,private resized:()=>void){this.gl=renderer.getContext() as WebGL2RenderingContext;this.extension=this.gl.getExtension('EXT_disjoint_timer_query_webgl2');this.native=Math.min(devicePixelRatio,1.25);}
+ begin(now:number){if(this.lost)return;if(this.previous){this.frames.push(now-this.previous);if(this.frames.length>300)this.frames.shift();}this.previous=now;this.frameStart=performance.now();}
+ beforeRender(){const gl=this.gl,e=this.extension;if(this.lost||!e)return;if(gl.isContextLost()){this.contextLost();return;}while(this.pending.length&&gl.getQueryParameter(this.pending[0],gl.QUERY_RESULT_AVAILABLE)){const q=this.pending.shift()!;if(!gl.getParameter(e.GPU_DISJOINT_EXT)){this.gpu.push(gl.getQueryParameter(q,gl.QUERY_RESULT)/1e6);if(this.gpu.length>120)this.gpu.shift();}gl.deleteQuery(q);}if(this.pending.length<3){this.query=gl.createQuery();if(this.query)gl.beginQuery(e.TIME_ELAPSED_EXT,this.query);}}
+ end(){if(this.lost)return;if(this.gl.isContextLost()){this.contextLost();return;}if(this.query){this.gl.endQuery(this.extension.TIME_ELAPSED_EXT);this.pending.push(this.query);this.query=null;}this.cpu.push(performance.now()-this.frameStart);if(this.cpu.length>300)this.cpu.shift();const now=performance.now();if(now-this.adjusted<6000||this.gpu.length<60)return;const average=this.gpu.reduce((a,b)=>a+b,0)/this.gpu.length,ratio=this.renderer.getPixelRatio();let target=ratio;if(average>10)target=Math.max(1,ratio-.1);else if(average<5&&this.cpu.reduce((a,b)=>a+b,0)/Math.max(1,this.cpu.length)<3)target=Math.min(this.native,ratio+.05);if(Math.abs(target-ratio)>.01){this.renderer.setPixelRatio(target);this.resized();}this.adjusted=now;}
+ /** Lost-context query handles are invalid; do not end, poll or delete them. */
+ contextLost(){this.lost=true;this.query=null;this.pending=[];this.extension=null;this.reset();}
+ contextRestored(){this.gl=this.renderer.getContext() as WebGL2RenderingContext;this.extension=this.gl.getExtension('EXT_disjoint_timer_query_webgl2');this.query=null;this.pending=[];this.lost=false;this.adjusted=performance.now();this.reset();}
+ resetClock(){this.previous=0;}
+ reset(){this.frames=[];this.cpu=[];this.gpu=[];this.previous=0;}
+ get stats(){const sorted=[...this.frames].sort((a,b)=>a-b),mean=(a:number[])=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;return{fps:Math.round(1000/(mean(this.frames)||16.67)),medianMs:Math.round((sorted[Math.floor(sorted.length*.5)]||0)*100)/100,p95Ms:Math.round((sorted[Math.floor(sorted.length*.95)]||0)*100)/100,p99Ms:Math.round((sorted[Math.floor(sorted.length*.99)]||0)*100)/100,maxMs:Math.round((sorted.at(-1)||0)*100)/100,hitches50:this.frames.filter(t=>t>50).length,cpuMs:Math.round(mean(this.cpu)*100)/100,gpuMs:this.gpu.length?Math.round(mean(this.gpu)*100)/100:null,pixelRatio:this.renderer.getPixelRatio(),samples:this.frames.length};}
+}

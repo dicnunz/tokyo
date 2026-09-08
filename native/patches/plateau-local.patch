@@ -1,0 +1,134 @@
+diff --git a/Source/PLATEAURuntime/Private/PLATEAUTextureLoader.cpp b/Source/PLATEAURuntime/Private/PLATEAUTextureLoader.cpp
+index fa6fc6a..d63ff39 100644
+--- a/Source/PLATEAURuntime/Private/PLATEAUTextureLoader.cpp
++++ b/Source/PLATEAURuntime/Private/PLATEAUTextureLoader.cpp
+@@ -15,6 +15,8 @@
+ #include "Misc/Paths.h"
+ #include "Components/SceneComponent.h"
+ #include "Misc/PackageName.h"
++#include "Misc/SecureHash.h"
++#include "Containers/StringConv.h"
+ #if WITH_EDITOR
+ #include "EditorFramework/AssetImportData.h"
+ #endif
+@@ -202,6 +204,25 @@ namespace {
+     }
+ }
+ 
++FString FPLATEAUTextureLoader::GetTexturePackageName(const FString& TexturePath) {
++    FString CanonicalPath = TexturePath;
++    FPaths::NormalizeFilename(CanonicalPath);
++    CanonicalPath = FPaths::ConvertRelativePathToFull(CanonicalPath);
++    FPaths::CollapseRelativeDirectories(CanonicalPath);
++
++    // Imported GML appearance files live below Content/PLATEAU. Keeping their
++    // relative path makes asset identity independent of the project location.
++    FString SourceRoot = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());
++    FPaths::NormalizeDirectoryName(SourceRoot);
++    SourceRoot += TEXT("/PLATEAU/");
++    FPaths::MakePathRelativeTo(CanonicalPath, *SourceRoot);
++
++    const FTCHARToUTF8 PathBytes(*CanonicalPath);
++    const FString Digest = FMD5::HashBytes(
++        reinterpret_cast<const uint8*>(PathBytes.Get()), PathBytes.Length());
++    return TEXT("/Game/PLATEAU/Textures/T_") + Digest;
++}
++
+ UTexture2D* FPLATEAUTextureLoader::Load(const FString& TexturePath_SlashOrBackSlash, bool OverwriteTextre) {
+     int32 Width, Height;
+     EPixelFormat PixelFormat;
+@@ -224,8 +245,7 @@ UTexture2D* FPLATEAUTextureLoader::Load(const FString& TexturePath_SlashOrBackSl
+     // テクスチャ作成
+     UTexture2D* NewTexture = nullptr;
+ 
+-    FString PackageName = TEXT("/Game/PLATEAU/Textures/");
+-    PackageName += FPaths::GetBaseFilename(TexturePath).Replace(TEXT("."), TEXT("_"));
++    const FString PackageName = GetTexturePackageName(TexturePath);
+     UPackage* Package = CreatePackage(*PackageName);
+     Package->FullyLoad();
+     NewTexture = Cast<UTexture2D>(Package->FindAssetInPackage());
+@@ -235,7 +255,7 @@ UTexture2D* FPLATEAUTextureLoader::Load(const FString& TexturePath_SlashOrBackSl
+ 
+         // テクスチャのアセット名設定
+         // "."はパッケージの階層とみなされるためリプレース
+-        FString TextureName = FPaths::GetBaseFilename(TexturePath).Replace(TEXT("."), TEXT("_"));
++        FString TextureName = FPackageName::GetShortName(PackageName);
+         if (!NewTexture->Rename(*TextureName, nullptr, REN_Test)) {
+             TextureName = MakeUniqueObjectName(Package, USceneComponent::StaticClass(), FName(TextureName)).ToString();
+         }
+@@ -329,9 +349,8 @@ UTexture2D* FPLATEAUTextureLoader::LoadTransient(const FString& TexturePath) {
+ 
+ // Texture保存(5.5のクラッシュ回避のためパッケージ保存はロード後に行う
+ bool FPLATEAUTextureLoader::SaveTexture(UTexture2D* Texture, const FString& TexturePath) {
+-    FString PackageName = TEXT("/Game/PLATEAU/Textures/");
+-    PackageName += FPaths::GetBaseFilename(TexturePath).Replace(TEXT("."), TEXT("_"));
++    const FString PackageName = GetTexturePackageName(TexturePath);
+     UPackage* Package = CreatePackage(*PackageName);
+     Package->FullyLoad();
+     return SaveTexturePackage(Texture, TexturePath, Package, PackageName);
+-}
+\ No newline at end of file
++}
+diff --git a/Source/PLATEAURuntime/Public/PLATEAUImportSettings.h b/Source/PLATEAURuntime/Public/PLATEAUImportSettings.h
+index 7df5191..3623649 100644
+--- a/Source/PLATEAURuntime/Public/PLATEAUImportSettings.h
++++ b/Source/PLATEAURuntime/Public/PLATEAUImportSettings.h
+@@ -27,7 +27,9 @@ enum class EPLATEAUMeshGranularity : uint8 {
+     //! 都市モデル地域単位(GMLファイル内のすべてを結合)
+     PerCityModelArea = 3,
+     //! 変更しない
+-    DoNotChange = 1000
++    // Keep the original sentinel's byte representation (1000 modulo 256).
++    // Blueprint enums use uint8; Apple Clang rejects the out-of-range 1000.
++    DoNotChange = 232
+ };
+ 
+ UENUM(BlueprintType)
+diff --git a/Source/PLATEAURuntime/Public/PLATEAUTextureLoader.h b/Source/PLATEAURuntime/Public/PLATEAUTextureLoader.h
+index 45c4654..6397047 100644
+--- a/Source/PLATEAURuntime/Public/PLATEAUTextureLoader.h
++++ b/Source/PLATEAURuntime/Public/PLATEAUTextureLoader.h
+@@ -7,6 +7,8 @@
+ 
+ class PLATEAURUNTIME_API FPLATEAUTextureLoader {
+ public:
++    // Source folders are part of texture identity; CityGML basenames repeat.
++    static FString GetTexturePackageName(const FString& TexturePath);
+     static UTexture2D* Load(const FString& TexturePath, bool OverwriteTextre);
+     static UTexture2D* LoadTransient(const FString& TexturePath);
+     static bool SaveTexture(UTexture2D* Texture, const FString& TexturePath);
+diff --git aSource/PLATEAUTests/Tests/Utils/PLATEAUTextureIdentityTest.cpp bSource/PLATEAUTests/Tests/Utils/PLATEAUTextureIdentityTest.cpp
+new file mode 100644
+index 0000000..fa04b58
+--- /dev/null
++++ bSource/PLATEAUTests/Tests/Utils/PLATEAUTextureIdentityTest.cpp
+@@ -0,0 +1,29 @@
++#include "Misc/AutomationTest.h"
++#include "Misc/Paths.h"
++#include "PLATEAUTextureLoader.h"
++
++#if WITH_DEV_AUTOMATION_TESTS
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPLATEAUTextureIdentityTest,
++    "PLATEAUTest.Tokyo.TextureSourceIdentity",
++    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
++
++bool FPLATEAUTextureIdentityTest::RunTest(const FString& Parameters) {
++    const FString Root = FPaths::ProjectContentDir() + TEXT("PLATEAU/fixture/udx/bldg/");
++    const FString First = Root + TEXT("53393585_bldg_6697_appearance/Texture_WallSurface_jpg24.jpg");
++    const FString Second = Root + TEXT("53393586_bldg_6697_appearance/Texture_WallSurface_jpg24.jpg");
++    const FString FirstPackage = FPLATEAUTextureLoader::GetTexturePackageName(First);
++    TestNotEqual(TEXT("Different source facades with the same basename stay separate"),
++        FirstPackage, FPLATEAUTextureLoader::GetTexturePackageName(Second));
++    TestEqual(TEXT("Equivalent source paths reuse the texture asset"), FirstPackage,
++        FPLATEAUTextureLoader::GetTexturePackageName(
++            Root + TEXT("53393585_bldg_6697_appearance/./Texture_WallSurface_jpg24.jpg")));
++    TestEqual(TEXT("Slash direction does not change source identity"), FirstPackage,
++        FPLATEAUTextureLoader::GetTexturePackageName(First.Replace(TEXT("/"), TEXT("\\"))));
++    TestNotEqual(TEXT("Unicode appearance folders retain their identity"),
++        FPLATEAUTextureLoader::GetTexturePackageName(Root + TEXT("東京/wall.jpg")),
++        FPLATEAUTextureLoader::GetTexturePackageName(Root + TEXT("大阪/wall.jpg")));
++    TestTrue(TEXT("Generated identity stays in the texture package folder"),
++        FirstPackage.StartsWith(TEXT("/Game/PLATEAU/Textures/T_")));
++    return true;
++}
++#endif

@@ -1,0 +1,13 @@
+Binaries/
+Builds/
+DerivedDataCache/
+Intermediate/
+Saved/
+External/
+Plugins/
+Content/SourceData/
+*.uasset
+*.umap
+__pycache__/
+*.pyc
+.DS_Store

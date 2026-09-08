@@ -1,0 +1,2 @@
+import {indexSourceGeometry} from './source-collision';
+self.onmessage=({data})=>{try{const result=indexSourceGeometry(data.chunks);self.postMessage({id:data.id,result},{transfer:[result.positions.buffer,result.indices.buffer,...Array.from(result.buckets.values(),v=>v.buffer),...Array.from(result.groundBuckets?.values()??[],v=>v.buffer)]});}catch(error){self.postMessage({id:data.id,error:String(error)});}};
