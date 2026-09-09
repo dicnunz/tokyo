@@ -85,7 +85,7 @@ async function openDataset(id:keyof typeof datasets){
   const dataset=datasets[id]??datasets.shibuya,token=++datasetGeneration;travelGeneration++;clearInput();ready=false;locationLoading=false;waitingForFloor=true;selectedFloor=undefined;scan.dispose();
   scan=dataset.mesh?new MeshIndoorScene(group,camera,renderer):new ScanScene(group,camera,renderer);const owner=scan;
   datasetSelect.value=id;floorSelect.replaceChildren(new Option('Loading floors…'));loading.hidden=false;loading.textContent=`Opening ${dataset.title}`;
-  document.querySelector('#dataset-title')!.textContent=dataset.title;document.querySelector('#about-title')!.textContent=dataset.title;document.title=`${dataset.title} · Tokyo Survey Atlas`;canvas.setAttribute('aria-label',`${dataset.title} measured interior`);
+  document.querySelector('#dataset-title')!.textContent=dataset.title;document.querySelector('#about-title')!.textContent=dataset.title;document.title=`${dataset.title} · Tokyo`;canvas.setAttribute('aria-label',`${dataset.title} measured interior`);
   const url=new URL(location.href);if(url.searchParams.get('dataset')!==id)url.searchParams.delete('floor');url.searchParams.set('dataset',id);history.replaceState(null,'',url);
   try{
     await owner.load(dataset.url);if(token!==datasetGeneration)return;
